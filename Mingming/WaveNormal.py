@@ -27,8 +27,8 @@ class wave:
         #储存行变换后的图片
         column_waved_img=np.zeros((img_height,img_width,img_channel),dtype=np.int16)
         #储存列变换后的图片
-        half_height=img_height//2-1
-        half_width=img_width//2-1
+        half_height=img_height//2
+        half_width=img_width//2
         img_array=np.array(img,dtype=np.int16)
         '''
         for i in range(img_channel):
@@ -44,19 +44,124 @@ class wave:
                     column_waved_img[k+half_height,j,i]=(img[2*k,j,i]-img[2*k+1,j,i])/2
         '''
         #使用numpy的科学计算比上面的做法速度快了近十倍
+        #下面对图片进行小波变换
         for j in range(half_width):
+            #行上面的小波变换
             row_waved_img[:,j,:]=(img_array[:,2*j,:]+img_array[:,2*j+1,:])/2
             row_waved_img[:,j+half_width,:]=(img_array[:,2*j,:]-img_array[:,2*j+1,:])/2
         img_array=row_waved_img
         for k in range(half_height):
+            #列上面的小波变换
             column_waved_img[k,:,:]=(img_array[2*k,:,:]+img_array[2*k+1,:,:])/2
             column_waved_img[k+half_height,:,:]=(img_array[2*k,:,:]-img_array[2*k+1,:,:])/2
-        return column_waved_img
+        waved_img=column_waved_img
+        return waved_img
+
+    def multi_wave_img(img,depth):
+        #多级小波变换函数
+        wave_img_list=[]
+        img=wave.storage2storage(img)
+        wave_img_list.append(img)
+        for depth_count in range(depth-1):
+        #多级小波变换，存放在一个list中
+            img_height=img.shape[0]
+            img_width=img.shape[1]
+            img_channel=img.shape[2]
+            img=wave.storage2storage(img[:img_height//2,:img_width//2,:])
+            wave_img_list.append(img)
+        for index in range(depth-1):
+        # 变换后的图像拼接
+            this_img_height=wave_img_list[depth-1-index].shape[0]
+            this_img_width=wave_img_list[depth-1-index].shape[1]
+            wave_img_list[depth-1-index-1][:this_img_height,:this_img_width,:]= \
+                    wave_img_list[depth-1-index][:,:,:]
+        return wave_img_list[0]
     def pic2pic(input_directory,output_directory):
         img=cv2.imread(input_directory)
         cv2.imwrite(output_directory,wave.storage2storage(img))
         if cv2.waitKey(0)== 27:         # wait for ESC key to exit
             cv2.destroyAllWindows()
+
+    def multi_wave_list(img,depth):
+        # 多级小波变换函数
+        wave_img_list=[]
+        img=wave.storage2storage(img)
+        wave_img_list.append(img)
+        for depth_count in range(depth-1):
+        # 多级小波变换，存放在一个list中
+            img_height=img.shape[0]
+            img_width=img.shape[1]
+            img_channel=img.shape[2]
+            img=wave.storage2storage(img[:img_height//2,:img_width//2,:])
+            wave_img_list.append(img)
+        '''
+        for index in range(depth-1):
+        # 变换后的图像拼接
+            this_img_height=wave_img_list[depth-1-index].shape[0]
+            this_img_width=wave_img_list[depth-1-index].shape[1]
+            wave_img_list[depth-1-index-1][:this_img_height,:this_img_width,:]= \
+                    wave_img_list[depth-1-index][:,:,:]
+        '''
+        return wave_img_list
+    def wave_extract(img,extract_depth,area,depth):
+        if extract_depth<=depth:
+            # 找到所要提取的图片高和宽
+            wave_img_list=wave.multi_wave_list(img,depth)
+            extract_img_height=wave_img_list[extract_depth-1].shape[0]
+            extract_img_width=wave_img_list[extract_depth-1].shape[1]
+            if area==1:
+                return \
+                        wave_img_list[extract_depth-1][:extract_img_height//2,:extract_img_width//2,:]
+            elif area==2:
+                return \
+                        wave_img_list[extract_depth-1][:extract_img_height//2,extract_img_width//2:,:]
+            elif area==3:
+                return \
+                        wave_img_list[extract_depth-1][extract_img_height//2:,extract_img_width//2:,:]
+            else:
+                return\
+                        wave_img_list[extract_depth-1][extract_img_height//2:,:extract_img_width//2,:]
+            # return wave
+        else:
+            print("Illegal Parameter")
+    def bri_wave_img_show(img,depth):
+        wave_img_list=[]
+        img=wave.storage2storage(img)
+        wave_img_list.append(img)
+        for depth_count in range(depth-1):
+        #多级小波变换，存放在一个list中
+            img_height=img.shape[0]
+            img_width=img.shape[1]
+            img_channel=img.shape[2]
+            img=wave.storage2storage(img[:img_height//2,:img_width//2,:])
+            wave_img_list.append(img)
+        bri_img_height=wave_img_list[-1].shape[0]
+        bri_img_width=wave_img_list[-1].shape[1]
+        bri_img_channel=wave_img_list[-1].shape[2]
+        wave_img_list[-1]=wave_img_list[-1]+np.full((bri_img_height,bri_img_width,bri_img_channel),128)
+        wave_img_list[-1][:bri_img_height//2,:bri_img_width//2,:]=\
+                wave_img_list[-1][:bri_img_height//2,:bri_img_width//2,:]-\
+                np.full((bri_img_height//2,bri_img_width//2,bri_img_channel),128)
+        for index in range(depth-1):
+            bri_img_height=wave_img_list[index].shape[0]
+            bri_img_width=wave_img_list[index].shape[1]
+            bri_img_channel=wave_img_list[index].shape[2]
+            wave_img_list[index]=wave_img_list[index]+np.full((bri_img_height,bri_img_width,bri_img_channel),128)
+        for index in range(depth-1):
+        # 变换后的图像拼接
+            this_img_height=wave_img_list[depth-1-index].shape[0]
+            this_img_width=wave_img_list[depth-1-index].shape[1]
+            wave_img_list[depth-1-index-1][:this_img_height,:this_img_width,:]= \
+                    wave_img_list[depth-1-index][:,:,:]
+        cv2.imwrite("wave.jpg",wave_img_list[0])
+        if cv2.waitKey(0)== 27:         # wait for ESC key to exit
+            cv2.destroyAllWindows()
+
+
+        
+
+
+#class light_
 
 '''
 #下面是测试类功能的代码，去掉注释即可测试
@@ -74,4 +179,13 @@ if cv2.waitKey(0)== 27:         # wait for ESC key to exit
     cv2.destroyAllWindows()
 elif k == ord('s'): # wait for 's' key to save and exit
     cv2.destroyAllWindows()
+img=cv2.imread("1.jpg")
+cv2.imwrite("2.jpg",wave.multi_wave_img(img,2))
+if cv2.waitKey(0)==27:
+    cv2.destroyWindow()
+#测试wave_extract()
+img=cv2.imread("1.jpg")
+cv2.imwrite("2.jpg",wave.wave_extract(img,2,3,3))
 '''
+img=cv2.imread("1.jpg")
+wave.bri_wave_img_show(img,3)
