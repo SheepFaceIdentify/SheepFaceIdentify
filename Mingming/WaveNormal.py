@@ -69,6 +69,12 @@ class wave:
             img_channel=img.shape[2]
             img=wave.storage2storage(img[:img_height//2,:img_width//2,:])
             wave_img_list.append(img)
+        #最后一级小波变换的低频部分减去127
+        last_low_height=wave_img_list[depth-1].shape[0]//2
+        last_low_width=wave_img_list[depth-1].shape[1]//2
+        wave_img_list[depth-1][:last_low_height,:last_low_width,:]=\
+                wave_img_list[depth-1][:last_low_height,:last_low_width,:]-\
+                np.full((last_low_height,last_low_width,3),127)
         for index in range(depth-1):
         # 变换后的图像拼接
             this_img_height=wave_img_list[depth-1-index].shape[0]
@@ -187,5 +193,13 @@ if cv2.waitKey(0)==27:
 img=cv2.imread("1.jpg")
 cv2.imwrite("2.jpg",wave.wave_extract(img,2,3,3))
 '''
+'''
+#测试bri_wave_img_show()
 img=cv2.imread("1.jpg")
 wave.bri_wave_img_show(img,3)
+'''
+'''
+#测试multi_wave_img()
+img=cv2.imread("1.jpg")
+cv2.imwrite("2.jpg",wave.multi_wave_img(img,3))
+'''
